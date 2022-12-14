@@ -1,6 +1,7 @@
 name: IKVM
 
 on:
+  workflow_dispatch:
   push:
     branches:
     - main
@@ -461,33 +462,3 @@ jobs:
     - name: Compress Image
       shell: pwsh
       run: cd dist && gi image/*/* | %{ $tfm = $_.Parent.Name; $rid = $_.Name; Push-Location "image/$tfm/$rid"; zip -r "../../IKVM-${env:GitVersion_SemVer}-image-$tfm-$rid.zip" .; Pop-Location }
-    - name: Create Release
-      if: github.ref == 'refs/heads/main' || github.event.head_commit.message == '+push'
-      uses: ncipollo/release-action@v1.10.0
-      with:
-        tag: ${{ steps.GitVersion.outputs.semVer }}
-        artifacts: dist/nuget/*.nupkg,dist/bin/*.zip,dist/tools/*.zip,dist/image/*.zip
-        generateReleaseNotes: true
-        prerelease: ${{ github.ref == 'refs/heads/develop' }}
-        token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Push NuGet (GitHub)
-      shell: pwsh
-      run: dotnet nuget push dist/nuget/*.nupkg --source $env:GITHUB_REPOS --api-key $env:GITHUB_TOKEN --skip-duplicate --no-symbols
-      env:
-        GITHUB_REPOS: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Push NuGet (Azure DevOps)
-      shell: pwsh
-      run: |
-        dotnet nuget add source $env:AZUREDEVOPS_REPOS --name az --username az --password $env:AZUREDEVOPS_TOKEN --store-password-in-clear-text
-        dotnet nuget push dist/nuget/*.nupkg --source az --api-key az --skip-duplicate --no-symbols
-      env:
-        AZUREDEVOPS_REPOS: https://pkgs.dev.azure.com/ikvm-revived/ikvm/_packaging/ikvm-ci/nuget/v3/index.json
-        AZUREDEVOPS_TOKEN: ${{ secrets.AZUREDEVOPS_PAT }}
-    - name: Push NuGet
-      if: github.ref == 'refs/heads/main' || github.event.head_commit.message == '+push'
-      shell: pwsh
-      run: dotnet nuget push dist/nuget/*.nupkg --source $env:NUGET_REPOS --api-key $env:NUGET_TOKEN --skip-duplicate
-      env:
-        NUGET_REPOS: https://api.nuget.org/v3/index.json
-        NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
